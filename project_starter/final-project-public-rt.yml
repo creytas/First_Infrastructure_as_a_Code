@@ -1,0 +1,106 @@
+Parameters:
+  # Paramenters are entirely optional.
+  # but using them will make your cloudformation templates more reusable
+  # use them for things that may change over time, such as instance type,
+  # VPCs and so on.
+
+    EnvironmentName:
+        Description: An environment name that will be prefixed to resource names
+        Type: String
+
+Resources:
+  # instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
+  # never give too much permissions to your EC2 instances! if they get hacked, the permissions get hacked also!
+  # in this example, I create a Role called UdacityS3ReadOnlyC2 and just give it a policy of S3 Read-Only Access
+
+  InternetGatewayAttachment:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+          InternetGatewayId: 
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-InternetGateway"                    
+          VpcId:
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-VPCID"                    
+
+  NatGateway1EIP:
+      Type: AWS::EC2::EIP
+      DependsOn: InternetGatewayAttachment
+      Properties: 
+          Domain: vpc
+
+  NatGateway2EIP:
+      Type: AWS::EC2::EIP
+      DependsOn: InternetGatewayAttachment
+      Properties:
+          Domain: vpc
+
+  NatGateway1: 
+      Type: AWS::EC2::NatGateway
+      Properties: 
+          AllocationId: !GetAtt NatGateway1EIP.AllocationId
+          SubnetId:
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-PUB1-SN"                    
+
+  NatGateway2: 
+      Type: AWS::EC2::NatGateway
+      Properties:
+          AllocationId: !GetAtt NatGateway2EIP.AllocationId
+          SubnetId: 
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-PUB2-SN"                    
+
+  PublicRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties: 
+          VpcId: 
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-VPCID"          
+          Tags: 
+              - Key: Name 
+                Value: !Sub ${EnvironmentName} Public Routes
+
+  DefaultPublicRoute: 
+      Type: AWS::EC2::Route
+      DependsOn: InternetGatewayAttachment
+      Properties: 
+          RouteTableId: !Ref PublicRouteTable
+          DestinationCidrBlock: 0.0.0.0/0
+          GatewayId: 
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-InternetGateway"                    
+
+  PublicSubnet1RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+          RouteTableId: !Ref PublicRouteTable
+          SubnetId:
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-PUB1-SN"                    
+
+  PublicSubnet2RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+          RouteTableId: !Ref PublicRouteTable
+          SubnetId: 
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-PUB2-SN"                    
+
+Outputs: 
+  # This is also optional.
+  # Bonus points for useful outputs!
+  # for example, if you create a Load Balancer
+  # it's nice to output the URL to it here, so that we don't have to go to the console to get it.
+
+    NatGateway1: 
+        Description: A reference to the created NatGateway1
+        Value: !Ref NatGateway1
+        Export:
+          Name: !Sub ${EnvironmentName}-NatGateway1
+
+    NatGateway2: 
+        Description: A reference to the created NatGateway2
+        Value: !Ref NatGateway2
+        Export:
+          Name: !Sub ${EnvironmentName}-NatGateway2

@@ -1,0 +1,69 @@
+Parameters:
+  # Paramenters are entirely optional.
+  # but using them will make your cloudformation templates more reusable
+  # use them for things that may change over time, such as instance type,
+  # VPCs and so on.
+
+    EnvironmentName:
+        Description: An environment name that will be prefixed to resource names
+        Type: String
+
+Resources:
+  # instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
+  # never give too much permissions to your EC2 instances! if they get hacked, the permissions get hacked also!
+  # in this example, I create a Role called UdacityS3ReadOnlyC2 and just give it a policy of S3 Read-Only Access
+
+  PrivateRouteTable1:
+      Type: AWS::EC2::RouteTable
+      Properties: 
+          VpcId:
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-VPCID"          
+          Tags: 
+              - Key: Name 
+                Value: !Sub ${EnvironmentName} Private Routes (AZ1)
+
+  DefaultPrivateRoute1:
+      Type: AWS::EC2::Route
+      Properties:
+          RouteTableId: !Ref PrivateRouteTable1
+          DestinationCidrBlock: 0.0.0.0/0
+          NatGatewayId: 
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-NatGateway1"                    
+
+  PrivateSubnet1RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+          RouteTableId: !Ref PrivateRouteTable1
+          SubnetId:
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-PRI1-SN"                    
+
+  PrivateRouteTable2:
+      Type: AWS::EC2::RouteTable
+      Properties: 
+          VpcId:
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-VPCID"                    
+          Tags: 
+              - Key: Name 
+                Value: !Sub ${EnvironmentName} Private Routes (AZ2)
+
+  DefaultPrivateRoute2:
+      Type: AWS::EC2::Route
+      Properties:
+          RouteTableId: !Ref PrivateRouteTable2
+          DestinationCidrBlock: 0.0.0.0/0
+          NatGatewayId: 
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-NatGateway2"                    
+          
+
+  PrivateSubnet2RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+          RouteTableId: !Ref PrivateRouteTable2
+          SubnetId: 
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-PRI2-SN"                    
